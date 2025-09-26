@@ -253,7 +253,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             get_object_or_404(model, recipe=recipe, user=request.user).delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         _, created = model.objects.get_or_create(
-            user=request.user,
+            author=request.user,
             recipe=recipe
         )
         if not created:
@@ -267,7 +267,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=('POST', 'DELETE'),
         permission_classes=(IsAuthenticated,),
-        url_path=r'(?P<id>\d+)/favorite',
+        url_path=r'favorite',
     )
     def favorite(self, request, pk):
         return self.helper_for_favorite_shopping(
@@ -281,7 +281,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=('POST', 'DELETE'),
         permission_classes=(IsAuthenticated,),
-        url_path=r'(?P<id>\d+)/shopping_cart',
+        url_path=r'shopping_cart',
     )
     def shopping_cart(self, request, pk):
         return self.helper_for_favorite_shopping(

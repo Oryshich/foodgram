@@ -13,7 +13,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', get_random_secret_key())
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*', 'mynewfoodgram.gotdns.ch',
+                 '51.250.19.156']
 
 
 # Application definition

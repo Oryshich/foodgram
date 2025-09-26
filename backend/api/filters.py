@@ -2,6 +2,7 @@ from django.db.models import BooleanField, ExpressionWrapper, Q
 from django_filters import rest_framework
 
 from recipes.models import Ingredient, Recipe, Tag
+from users.models import User
 
 
 class IngredientFilter(rest_framework.FilterSet):
@@ -23,35 +24,30 @@ class IngredientFilter(rest_framework.FilterSet):
 
 
 class RecipeFilter(rest_framework.FilterSet):
+
+    author = rest_framework.ModelChoiceFilter(
+        to_field_name='id',
+        queryset=User.objects.all()
+    )
     tags = rest_framework.ModelMultipleChoiceFilter(
-        queryset=Tag.objects.all(),
         field_name='tags__slug',
+        queryset=Tag.objects.all(),
         to_field_name='slug',
     )
-    is_favorited = rest_framework.BooleanFilter(
-        method='get_is_favorited'
+    is_favorited = rest_framework.TypedChoiceFilter(
+        choices=[(1, 'true'), (0, 'false')],
+        field_name='is_favorited'
     )
-    is_in_shopping_cart = rest_framework.BooleanFilter(
-        method='get_is_in_shopping_cart'
+    is_in_shopping_cart = rest_framework.TypedChoiceFilter(
+        choices=[(1, 'true'), (0, 'false')],
+        field_name='is_in_shopping_cart'
     )
 
     class Meta:
         model = Recipe
         fields = (
             'author',
-            'name',
             'tags',
-            'cooking_time',
             'is_favorited',
             'is_in_shopping_cart'
         )
-    
-    def get_is_favorited(self, queryset, name, value):
-        if self.request.user.is_authenticated and value:
-            return queryset.filter(favorites__user=self.request.user)
-        return queryset
-
-    def get_is_in_shopping_cart(self, queryset, name, value):
-        if self.request.user.is_authenticated and value:
-            return queryset.filter(shopping_lists__user=self.request.user)
-        return queryset

@@ -99,7 +99,7 @@ class RecipeIngredientsSerializer(serializers.ModelSerializer):
 
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name') 
-    amount = serializers.ReadOnlyField(
+    measurement_unit = serializers.ReadOnlyField(
         source='ingredient.measurement_unit'
     )
 
@@ -186,7 +186,7 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, data):
-        ingredients = data.get('recipe_ingredients')
+        ingredients = data.get('ingredients')
         if not ingredients:
             raise ValidationError('Отсутствуют ингредиенты !!!')
         ingredients_id = [id['id'] for id in ingredients]
@@ -202,13 +202,13 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
         for ingredient in ingredients:
             RecipeIngredients.objects.create(
                 recipe=recipe,
-                ingredients=ingredient.get('id'),
+                ingredient=ingredient.get('id'),
                 amount=ingredient.get('amount'))
 
     def create(self, validated_data):
         """Создание рецепта."""
         tags = validated_data.pop('tags')
-        ingredients = validated_data.pop('recipe_ingredients')
+        ingredients = validated_data.pop('ingredients')
         recipe = super().create(validated_data)
         recipe.tags.set(tags)
         self.add_ingredients(ingredients, recipe)
