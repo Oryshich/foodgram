@@ -5,7 +5,7 @@ from .models import (
     Favorite,
     Ingredient,
     Recipe,
-    Shopping_list,
+    ShoppingCart,
     Tag
 )
 
@@ -44,7 +44,7 @@ class RecipeAdmin(admin.ModelAdmin):
     tags_display.short_description = 'Tags'
 
     def ingredients_display(self, obj):
-        return ', '.join(f'{ingredient.ingredients} ({ingredient.amount})' 
+        return ', '.join(f'{ingredient.ingredients} ({ingredient.amount})'
                          for ingredient in obj.recipeingredients.all())
     ingredients_display.short_description = 'Ingredients'
 
@@ -64,8 +64,8 @@ class TagAdmin(admin.ModelAdmin):
     ordering = ('name',)
 
 
-@admin.register(Shopping_list)
-class Shopping_listAdmin(admin.ModelAdmin):
+@admin.register(ShoppingCart)
+class ShoppingCartAdmin(admin.ModelAdmin):
     pass
 
 

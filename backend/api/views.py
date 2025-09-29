@@ -1,140 +1,195 @@
+from django.db import IntegrityError
 from django.db.models import Sum
 from django.http import FileResponse
-from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from djoser.views import UserViewSet as DjoserUserViewSet
-from rest_framework import status, viewsets
+from django.shortcuts import get_object_or_404, redirect
+from djoser.views import UserViewSet
+from rest_framework import status, viewsets, filters
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AllowAny, IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 
 from api.serializers import (
-    AvatarSerializer,
+    BaseUserSerializer,
     CreateRecipeSerializer,
+    CustomCreateUserSerializer,
+    CustomUserSerializer,
     IngredientSerializer,
-    ReadFollowSerializer,
-    WriteFollowSerializer,
     ReadRecipeSerializer,
-    ShortRecipeSerializer,
+    RecipeShortSerializer,
+    SubscriptionSerializer,
     TagSerializer,
-    UserSerializer,
 )
-from .pagination import MyPagination
+from .pagination import LimitPageNumberPagination
 from .filters import IngredientFilter, RecipeFilter
 from recipes.models import (
     Favorite,
     Ingredient,
     Recipe,
-    RecipeIngredients,
-    Shopping_list,
+    RecipeIngredient,
+    ShoppingCart,
     Tag
 )
-from users.models import Follow, User
+from users.models import Subscriptions, User
 from .permissions import IsAuthorOrReadOnly, ReadOnly
 
 
-class UserViewSet(DjoserUserViewSet):
+class CustomUserViewSet(UserViewSet):
+    """Вьюсет для пользователей."""
 
-    serializer_class = UserSerializer
     queryset = User.objects.all()
-    permission_classes = (IsAuthenticated, ReadOnly)
-    pagination_class = MyPagination
+    serializer_class = CustomUserSerializer
+    pagination_class = LimitPageNumberPagination
+    lookup_field = 'id'
 
     def get_permissions(self):
-        if self.action == 'me':
-            self.permission_classes = (IsAuthenticated, )
+        if self.action in ('list', 'retrieve'):
+            return [AllowAny()]
         return super().get_permissions()
-    
-    @action(
-        detail=False,
-        methods=('PUT',),
-        permission_classes=(IsAuthenticated,),
-        url_path='me/avatar',
-    )
-    def avatar(self, request):
-        if 'avatar' not in request.data:
-            return Response(
-                {'avatar': 'Отсутствует изображение'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        serializer = AvatarSerializer(data=request.data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = CustomCreateUserSerializer(
+            data=request.data,
+            context={'request': request}
+        )
         serializer.is_valid(raise_exception=True)
-
-        avatar_data = serializer.validated_data.get('avatar')
-
-        request.user.avatar = avatar_data
-        request.user.save()
-
-        image_url = request.build_absolute_uri(
-            f'/media/users/images/{avatar_data.name}'
-        )
+        self.perform_create(serializer)
+        user = User.objects.get(email=serializer.validated_data['email'])
+        minimal = BaseUserSerializer(user, context={'request': request})
+        headers = self.get_success_headers(minimal.data)
         return Response(
-            {'avatar': str(image_url)}, status=status.HTTP_200_OK
+            minimal.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
         )
-
-    @avatar.mapping.delete
-    def del_avatar(self, request):
-        if self.request.user.avatar is not None:
-            self.request.user.avatar.delete(save=False)
-            self.request.user.avatar = None
-            self.request.user.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(
-        methods=('GET', 'PUT', 'PATCH', 'DELETE'),
-        detail=False,
-        permission_classes=(IsAuthenticated,)
-    )
-    def me(self, request, *args, **kwargs):
-        return super().me(request, *args, **kwargs)
 
     @action(
         detail=False,
         methods=('GET',),
-        url_path='subscriptions',
+        permission_classes=(IsAuthenticated,)
     )
-    def get_my_follows(self, request):
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+    @action(
+        detail=False,
+        methods=('PUT', 'DELETE'),
+        permission_classes=(IsAuthenticated,),
+        url_path='me/avatar'
+    )
+    def avatar(self, request):
         user = request.user
-        user_following = User.objects.filter(following__user=user)
-        serializer = ReadFollowSerializer(
-            self.paginate_queryset(user_following),
+        if request.method == 'PUT':
+            if not request.data or (
+                request.data.get('avatar') in (None, '', [])
+            ):
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            serializer = self.get_serializer(
+                user,
+                data=request.data,
+                partial=True
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({'avatar': serializer.data.get('avatar')})
+        elif request.method == 'DELETE':
+            user.avatar.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=False,
+        methods=('POST',),
+        permission_classes=(IsAuthenticated,)
+    )
+    def set_password(self, request):
+        user = request.user
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+        if not user.check_password(current_password):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(new_password)
+        user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=False,
+        methods=('GET',),
+        permission_classes=(IsAuthenticated,)
+    )
+    def subscriptions(self, request):
+        user = request.user
+        queryset = User.objects.filter(followers__user=user)
+        pages = self.paginate_queryset(queryset)
+        if pages is not None:
+            serializer = SubscriptionSerializer(
+                pages,
+                many=True,
+                context={'request': request}
+            )
+            return self.get_paginated_response(serializer.data)
+        serializer = SubscriptionSerializer(
+            queryset,
             many=True,
-            context={'request': request},
+            context={'request': request}
         )
-        return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
     @action(
         detail=True,
         methods=('POST',),
-        permission_classes=(IsAuthenticated,),
-        url_path='subscribe',
+        permission_classes=(IsAuthenticated,)
     )
-    def subscribe(self, request, id):
-        user = get_object_or_404(User, pk=id)
-        if request.user == user:
-            raise ValidationError('Нельзя подписываться на самого себя')
-        _, created = Follow.objects.get_or_create(
-            following=user,
-            user=request.user
-        )
-        if not created:
-            raise ValidationError('Уже подписан')
-        return Response(
-            WriteFollowSerializer(user, context={'request': request}).data,
-            status=status.HTTP_201_CREATED,
-        )
-    
+    def subscribe(self, request, pk=None, id=None):
+        try:
+            user = request.user
+            author_id = id if id is not None else pk
+            author = User.objects.filter(id=author_id).first()
+            if author is None:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+            if user == author:
+                # Подписка на самого себя запрещена
+                return Response(
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                (subscription,
+                    created) = Subscriptions.objects.get_or_create(
+                    user=user, following=author
+                )
+            except IntegrityError:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            if not created:
+                # Подписка не создана !
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            serializer = SubscriptionSerializer(
+                author, context={'request': request}
+            )
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED
+            )
+        except Exception:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
     @subscribe.mapping.delete
-    def del_subscribe(self, request, id):
-        user = get_object_or_404(User, pk=id)
-        get_object_or_404(
-            Follow,
-            following=user,
-            user=request.user
-        ).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def del_subscribe(self, request, pk=None, id=None):
+        try:
+            user = request.user
+            author_id = id if id is not None else pk
+            author = User.objects.filter(id=author_id).first()
+            if author is None:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+            subscription = Subscriptions.objects.filter(
+                user=user,
+                following=author
+            )
+            if subscription.exists():
+                subscription.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -148,64 +203,66 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
-    filter_backends = (DjangoFilterBackend,)
+    filter_backends = (DjangoFilterBackend, filters.SearchFilter)
     filterset_class = IngredientFilter
+    search_fields = ['^name']
     permission_classes = (AllowAny,)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = (
-        Recipe.objects.prefetch_related('tags', 'ingredients')
-        .select_related('author')
-        .all()
-    )
+    queryset = Recipe.objects.all()
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
-    pagination_class = MyPagination
+    pagination_class = LimitPageNumberPagination
     permission_classes = (IsAuthorOrReadOnly,)
 
     def get_serializer_class(self):
-        if self.request.method in SAFE_METHODS:
-            return ReadRecipeSerializer
-        return CreateRecipeSerializer
+        if self.action in ('create', 'partial_update', 'update'):
+            return CreateRecipeSerializer
+        return ReadRecipeSerializer
 
     def perform_create(self, serializer):
-        serializer.is_valid(raise_exception=True)
         serializer.save(author=self.request.user)
 
-    def partial_update(self, request):
-        instance = self.get_object()
-        data = request.data.copy()
-
-        serializer = self.get_serializer(
-            instance,
-            data=data,
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        super().perform_update(serializer)
-        return Response(serializer.data)
-    
-    def get_permissions(self):
-        if (
-            self.action == 'download_shopping_cart' 
-            or self.request.method == 'POST'
-        ):
-            self.permission_classes = (IsAuthenticated,)
-        return super().get_permissions()
+    def helper_favorite_shopping(self, request, recipe, model):
+        user = request.user
+        if request.method == 'POST':
+            _, created = model.objects.get_or_create(
+                user=user,
+                recipe=recipe
+            )
+            if not created:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            serializer = RecipeShortSerializer(
+                recipe,
+                context={'request': request}
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        dataset = model.objects.filter(user=user, recipe=recipe)
+        if dataset.exists():
+            dataset.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         detail=True,
-        methods=('GET',),
-        permission_classes=(IsAuthorOrReadOnly,),
-        url_path='get-link',
+        methods=('POST', 'DELETE'),
+        permission_classes=(IsAuthenticated,),
+        url_path='favorite',
     )
-    def get_link(self, request, **kwargs):
-        lnk = (
-            f'{request.schema}://{request.get_host()}'
-            f'/s/{self.get_object().short_url}'
-        )
-        return Response({'short-link': lnk}, status=status.HTTP_200_OK)
+    def favorite(self, request, pk):
+        recipe = self.get_object()
+        return self.helper_favorite_shopping(request, recipe, Favorite)
+
+    @action(
+        detail=True,
+        methods=('POST', 'DELETE'),
+        permission_classes=(IsAuthenticated,),
+        url_path='shopping_cart',
+    )
+    def shopping_cart(self, request, pk):
+        recipe = self.get_object()
+        return self.helper_favorite_shopping(request, recipe, ShoppingCart)
 
     @action(
         detail=False,
@@ -213,9 +270,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
         url_path='download_shopping_cart',
     )
-    def download_list(self, request):
-        ingredients = RecipeIngredients.objects.filter(
-            recipe__shopping_lists__user=request.user
+    def download_shopping_cart(self, request):
+        ingredients = RecipeIngredient.objects.filter(
+            recipe__shoppingcart__user=request.user
         ).values(
             'ingredient__name',
             'ingredient__measurement_unit',
@@ -241,52 +298,37 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 f'({amount_measurement[1]})\n'
             )
         return FileResponse(
-            content, 
+            content,
             content_type='text/plain',
-            filename="shopping_cart.txt"
+            filename="shopping_cart.txt",
+            status=status.HTTP_200_OK
         )
 
-    @staticmethod
-    def helper_for_favorite_shopping(request, dest_list_name, pk, model):
-        recipe = get_object_or_404(Recipe, pk=pk)
-        if request.method == 'DELETE':
-            get_object_or_404(model, recipe=recipe, user=request.user).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        _, created = model.objects.get_or_create(
-            author=request.user,
-            recipe=recipe
-        )
-        if not created:
-            raise ValidationError(f'Уже есть в списке {dest_list_name}')
+    @action(
+        detail=True,
+        methods=('GET',),
+        url_path='get-link',
+    )
+    def get_link(self, request, pk):
+        try:
+            recipe = self.get_object()
+        except Recipe.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        scheme = request.scheme
+        host = request.get_host()
+        lnk = f'{scheme}://{host}'
         return Response(
-            ShortRecipeSerializer(recipe).data,
-            status=status.HTTP_201_CREATED,
+            {'short-link': f'{lnk}/s/{recipe.short_link}'},
+            status=status.HTTP_200_OK
         )
 
     @action(
-        detail=True,
-        methods=('POST', 'DELETE'),
-        permission_classes=(IsAuthenticated,),
-        url_path=r'favorite',
+        detail=False,
+        methods=('GET',),
+        permission_classes=(ReadOnly,),
+        url_path='s/<str:short_link>',
     )
-    def favorite(self, request, pk):
-        return self.helper_for_favorite_shopping(
-            request,
-            dest_list_name='избранного',
-            pk=pk,
-            model=Favorite,
-        )
-
-    @action(
-        detail=True,
-        methods=('POST', 'DELETE'),
-        permission_classes=(IsAuthenticated,),
-        url_path=r'shopping_cart',
-    )
-    def shopping_cart(self, request, pk):
-        return self.helper_for_favorite_shopping(
-            request,
-            dest_list_name='покупок',
-            pk=pk,
-            model=Shopping_list,
-        )
+    def get_short_link(self, request, short_link):
+        recipe = get_object_or_404(Recipe, short_link=short_link)
+        return redirect(recipe.get_abs_url())
