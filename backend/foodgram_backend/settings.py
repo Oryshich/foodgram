@@ -68,10 +68,15 @@ WSGI_APPLICATION = 'foodgram_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-USE_PG = os.getenv('USE_PG', 'True').lower() == 'true'
-USE_PG = True
 
-if USE_PG:
+if os.getenv('USE_SQLITE', 'True') == 'True':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -80,13 +85,6 @@ if USE_PG:
             'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'foodgram_password'),
             'HOST': os.getenv('DB_HOST', ''),
             'PORT': os.getenv('DB_PORT', 5432)
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
 
