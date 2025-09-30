@@ -33,4 +33,4 @@ services:
       - backend
       - frontend
     ports:
-      - 8000:80
+      - 10000:80
