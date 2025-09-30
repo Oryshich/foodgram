@@ -1,8 +1,9 @@
 import uuid
+
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from .constants import MAX_LENGTH_FIELD
+from recipes.constants import MAX_LENGTH_FIELD
 from users.models import User
 
 

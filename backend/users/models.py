@@ -3,12 +3,8 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import Q
 
-from .constants import (
-    MAX_LENGTH_EMAIL,
-    MAX_LENGTH_FIRST_NAME,
-    MAX_LENGTH_LAST_NAME,
-    MAX_LENGTH_USERNAME
-)
+from .constants import (MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_NAME,
+                        MAX_LENGTH_LAST_NAME, MAX_LENGTH_USERNAME)
 
 
 class UserManager(BaseUserManager):

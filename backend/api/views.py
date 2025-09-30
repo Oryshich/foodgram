@@ -1,38 +1,25 @@
 from django.db import IntegrityError
 from django.db.models import Sum
 from django.http import FileResponse
-from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404, redirect
+from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from rest_framework import status, viewsets, filters
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-
-from api.serializers import (
-    BaseUserSerializer,
-    CreateRecipeSerializer,
-    CustomCreateUserSerializer,
-    CustomUserSerializer,
-    IngredientSerializer,
-    ReadRecipeSerializer,
-    RecipeShortSerializer,
-    SubscriptionSerializer,
-    TagSerializer,
-)
-from .pagination import LimitPageNumberPagination
-from .filters import IngredientFilter, RecipeFilter
-from recipes.models import (
-    Favorite,
-    Ingredient,
-    Recipe,
-    RecipeIngredient,
-    ShoppingCart,
-    Tag
-)
+from api.filters import IngredientFilter, RecipeFilter
+from api.pagination import LimitPageNumberPagination
+from api.permissions import IsAuthorOrReadOnly, ReadOnly
+from api.serializers import (BaseUserSerializer, CreateRecipeSerializer,
+                             CustomCreateUserSerializer, CustomUserSerializer,
+                             IngredientSerializer, ReadRecipeSerializer,
+                             RecipeShortSerializer, SubscriptionSerializer,
+                             TagSerializer)
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, Tag)
 from users.models import Subscriptions, User
-from .permissions import IsAuthorOrReadOnly, ReadOnly
 
 
 class CustomUserViewSet(UserViewSet):

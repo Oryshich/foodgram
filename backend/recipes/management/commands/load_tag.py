@@ -6,7 +6,6 @@ from django.core.management.base import BaseCommand
 
 from recipes.models import Tag
 
-
 PATH_TO_CSV = 'data/tags.csv'
 
 
