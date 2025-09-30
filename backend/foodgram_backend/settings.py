@@ -69,6 +69,7 @@ WSGI_APPLICATION = 'foodgram_backend.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 USE_PG = os.getenv('USE_PG', 'True').lower() == 'true'
+USE_PG = True
 
 if USE_PG:
     DATABASES = {
