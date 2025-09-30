@@ -123,34 +123,6 @@ class Recipe(models.Model):
         return f'/recipes/{self.pk}/'
 
 
-class RecipeIngredientQuerySet(models.QuerySet):
-    """Кверисет для связи."""
-
-    def get_sum_amount(self):
-        return self.annotate(total_amount=models.Sum('amount'))
-
-    def order_by_ingredient_name(self):
-        return self.order_by('ingredient__name')
-
-    def rename_fields(self):
-        return self.values(
-            name=models.F('ingredient__name'),
-            measurement_unit=models.F('ingredient__measurement_unit')
-        )
-
-
-class ShopCartListManager(models.Manager):
-
-    def get_queryset(self, user: User):
-        return (
-            RecipeIngredientQuerySet(self.model)
-            .filter(recipe__shopping_cart__user=user)
-            .rename_fields()
-            .get_sum_amount()
-            .order_by_ingredient_name()
-        )
-
-
 class RecipeIngredient(models.Model):
     """Модель для связи рецепта и списка продуктов (ингредиентов)."""
 
@@ -170,9 +142,6 @@ class RecipeIngredient(models.Model):
         ],
         verbose_name='Количество',
     )
-
-    objects = RecipeIngredientQuerySet.as_manager()
-    shopping_list = ShopCartListManager()
 
     class Meta:
         verbose_name = 'Ингредиент'
