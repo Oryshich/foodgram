@@ -61,4 +61,4 @@ USER: имя пользователя на сервере для автомат�
 * разработчик : **Орышич Евгений** - https://github.com/Oryshich
 * ревьюер: **Шкода Игорь**
 
-![workflow](https://github.com/oryshich/kittygram_final/actions/workflows/main.yml/badge.svg)
+![workflow](https://github.com/oryshich/foodgram/actions/workflows/main.yml/badge.svg)
