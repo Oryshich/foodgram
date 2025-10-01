@@ -14,7 +14,7 @@ services:
     env_file: .env
     volumes:
       - static_volume:/backend_static/
-      - media_volume:/media/
+      - media_volume:/app/media/recipes/images
     depends_on:
       - db
   frontend:
@@ -22,13 +22,13 @@ services:
     env_file: .env
     command: cp -r /app/build/. /static/
     volumes:
-      - static_volume:/static/
+      - static_volume:/static
   gateway:
     image: egenor/foodgram_gateway  # Качаем с Docker Hub
     env_file: .env
     volumes:
-      - static_volume:/static/
-      - media_volume:/media/
+      - static_volume:/static
+      - media_volume:/media/recipes/images
     depends_on:
       - backend
       - frontend
