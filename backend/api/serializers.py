@@ -53,9 +53,18 @@ class CustomUserSerializer(UserSerializer):
 class CustomCreateUserSerializer(UserCreateSerializer):
     """Сериализатор для создания пользователя."""
 
+    avatar = Base64ImageField(required=False)
+
     class Meta:
         model = User
-        fields = ('email', 'username', 'first_name', 'last_name', 'password')
+        fields = (
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'password',
+            'avatar'
+        )
 
 
 class BaseUserSerializer(serializers.ModelSerializer):
@@ -170,16 +179,6 @@ class SubscriptionSerializer(CustomUserSerializer):
 
     def get_recipes_count(self, obj):
         return obj.recipes.count()
-
-
-class AvatarSerializer(serializers.ModelSerializer):
-    """Сериализатор для изображения профиля."""
-
-    avatar = Base64ImageField(required=False)
-
-    class Meta:
-        model = User
-        fields = ('avatar',)
 
 
 class ShoppingCartSerializer(serializers.ModelSerializer):

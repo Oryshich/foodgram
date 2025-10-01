@@ -1,7 +1,6 @@
 import csv
 import os
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from recipes.models import Tag
@@ -21,8 +20,6 @@ class Command(BaseCommand):
     help = 'Load tags.csv to BD'
 
     def handle(self, *args, **options):
-        content = load_file(
-            os.path.join(settings.BASE_DIR.parent, PATH_TO_CSV)
-        )
+        content = load_file(PATH_TO_CSV)
         _ = Tag.objects.bulk_create(content)
         print(f'{len(content)} records were saved.')
