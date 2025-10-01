@@ -44,7 +44,7 @@ class CustomUserViewSet(UserViewSet):
         self.perform_create(serializer)
         user = User.objects.get(email=serializer.validated_data['email'])
         min_user_serializer = BaseUserSerializer(
-            user, 
+            user,
             context={'request': request}
         )
         headers = self.get_success_headers(min_user_serializer.data)
