@@ -14,7 +14,7 @@ services:
     env_file: .env
     volumes:
       - static_volume:/backend_static/
-      - media_volume:/app/media/recipes/images
+      - media_volume:/app/media
     depends_on:
       - db
   frontend:
@@ -28,7 +28,7 @@ services:
     env_file: .env
     volumes:
       - static_volume:/static
-      - media_volume:/media/recipes/images
+      - media_volume:/media
     depends_on:
       - backend
       - frontend
