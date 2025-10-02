@@ -1,5 +1,4 @@
 from django.core.validators import MinValueValidator
-from django.db import transaction
 from djoser.serializers import (
     UserCreateSerializer,
     UserSerializer as DjoserUserSerializer
@@ -12,7 +11,7 @@ from api.fields import Base64ImageField
 from api.constants import MIN_AMOUNT, MIN_COOKING_TIME
 from recipes.models import (Ingredient, Recipe, RecipeIngredient,
                             ShoppingCart, Tag)
-from users.models import Subscriptions, User
+from users.models import User
 
 
 class UserSerializer(DjoserUserSerializer):
@@ -209,16 +208,12 @@ class ReadRecipeSerializer(serializers.ModelSerializer):
     def get_is_favorited(self, obj):
         user = self.context.get('request').user
         return (
-            user.is_authenticated 
+            user.is_authenticated
             and obj.favorites.filter(user=user).exists()
         )
 
     def get_is_in_shopping_cart(self, obj):
         user = self.context.get('request').user
-        # return (
-        #     user.is_authenticated 
-        #     and obj.shoppingcarts.filter(user=user).exists()
-        # )
         if user.is_anonymous:
             return False
         return ShoppingCart.objects.filter(user=user, recipe=obj).exists()
@@ -304,7 +299,7 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
         self.helper_validate_ingredients(data.get('ingredients'))
         self.helper_validate_cooking_time(data.get('cooking_time'))
         return data
-    
+
     def helper_add_ingredients(self, recipe, ingredients):
         for ingredient_data in ingredients:
             ingredient = Ingredient.objects.get(id=ingredient_data['id'])
