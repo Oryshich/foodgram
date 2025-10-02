@@ -20,5 +20,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         content = load_file(PATH_TO_CSV)
-        _ = Ingredient.objects.bulk_create(content)
-        print(f'{len(content)} records were saved.')
+        Ingredient.objects.bulk_create(content, ignore_conflicts=True)
+        self.stdout.write(
+            self.style.SUCCESS(f'{len(content)} records were processed.')
+        )

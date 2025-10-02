@@ -5,14 +5,14 @@ from api.views import (CustomUserViewSet, IngredientViewSet, RecipeViewSet,
                        TagViewSet)
 
 app_name = 'api'
-v1_route = SimpleRouter()
+route = SimpleRouter()
 
-v1_route.register('users', CustomUserViewSet, basename='users')
-v1_route.register('tags', TagViewSet, basename='tags')
-v1_route.register('ingredients', IngredientViewSet, basename='ingredients')
-v1_route.register('recipes', RecipeViewSet, basename='recipes')
+route.register('users', CustomUserViewSet, basename='users')
+route.register('tags', TagViewSet, basename='tags')
+route.register('ingredients', IngredientViewSet, basename='ingredients')
+route.register('recipes', RecipeViewSet, basename='recipes')
 
 urlpatterns = [
-    path('', include(v1_route.urls)),
+    path('', include(route.urls)),
     path('auth/', include('djoser.urls.authtoken')),
 ]

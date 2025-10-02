@@ -1,3 +1,5 @@
+from itertools import chain
+
 from django.contrib import admin
 
 from .models import User
@@ -11,6 +13,8 @@ class UserAdmin(admin.ModelAdmin):
         'email',
         'first_name',
         'last_name',
+        'user_subscriptions',
+        'user_favorites',
     )
     search_fields = (
         'username',
@@ -20,3 +24,13 @@ class UserAdmin(admin.ModelAdmin):
     )
     list_filter = ('username', 'email')
     ordering = ('id',)
+
+    @admin.display(description='Подписки')
+    def user_subscriptions(self, object):
+        data = object.follows.values_list('following__username')
+        return list(chain.from_iterable(data))
+
+    @admin.display(description='Избранное')
+    def user_favorites(self, object):
+        data = object.favorites.values_list('favorites__name')
+        return list(chain.from_iterable(data))

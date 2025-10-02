@@ -1,6 +1,15 @@
+from itertools import chain
+
 from django.contrib import admin
 
-from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
+from recipes.models import (
+    Favorite,
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    ShoppingCart,
+    Tag
+)
 
 
 @admin.register(Ingredient)
@@ -14,6 +23,11 @@ class IngredientAdmin(admin.ModelAdmin):
     ordering = ('name',)
 
 
+class RecipeIngredientInline(admin.TabularInline):
+    model = RecipeIngredient
+    fields = ('ingredient', 'amount')
+
+
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     list_display = (
@@ -25,23 +39,27 @@ class RecipeAdmin(admin.ModelAdmin):
         'cooking_time',
         'count_add_to_favorite_display',
     )
-    search_fields = ('author', 'name',)
+    search_fields = ('author__username', 'name',)
     list_filter = ('tags',)
     ordering = ('-id',)
     readonly_fields = ('count_add_to_favorite_display', 'ingredients_display')
+    inlines = (RecipeIngredientInline,)
 
+    @admin.display(description='Tags',)
     def tags_display(self, obj):
-        return ', '.join(tag.name for tag in obj.tags.all())
-    tags_display.short_description = 'Tags'
+        tags = object.tags.values_list('name')
+        return list(chain.from_iterable(tags))
 
+    @admin.display(description='Ingredients',)
     def ingredients_display(self, obj):
-        return ', '.join(f'{ingredient.ingredients} ({ingredient.amount})'
-                         for ingredient in obj.recipeingredients.all())
-    ingredients_display.short_description = 'Ingredients'
+        ingredients = object.ingredients.values_list('name')
+        return list(chain.from_iterable(ingredients))
 
+    @admin.display(description='Count in favorites',)
     def count_add_to_favorite_display(self, obj):
-        return Favorite.objects.filter(recipe=obj).count()
-    count_add_to_favorite_display.short_description = 'Count in favorites'
+        count = obj.favorites.count()
+        if count:
+            return count
 
 
 @admin.register(Tag)
@@ -57,9 +75,17 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(ShoppingCart)
 class ShoppingCartAdmin(admin.ModelAdmin):
-    pass
+    list_display = (
+        'user',
+        'recipe',
+    )
+    ordering = ('user',)
 
 
 @admin.register(Favorite)
 class FavoriteAdmin(admin.ModelAdmin):
-    pass
+    list_display = (
+        'user',
+        'recipe',
+    )
+    ordering = ('user',)

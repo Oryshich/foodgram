@@ -1,9 +1,17 @@
-import uuid
-
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.urls import reverse
 
-from recipes.constants import MAX_LENGTH_FIELD
+from recipes.constants import (
+    MAX_LENGTH_FIELD,
+    MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT,
+    MAX_LENGTH_INGREDIENT_NAME,
+    MAX_LENGTH_TAG_NAME,
+    MAX_LENGTH_TAG_SLUG,
+    MIN_AMOUNT,
+    MIN_COOKING_TIME
+)
+from recipes.utils import generate_short_link
 from users.models import User
 
 
@@ -12,11 +20,11 @@ class Tag(models.Model):
 
     name = models.CharField(
         'Название',
-        max_length=MAX_LENGTH_FIELD,
+        max_length=MAX_LENGTH_TAG_NAME,
         unique=True,
     )
     slug = models.SlugField(
-        max_length=MAX_LENGTH_FIELD,
+        max_length=MAX_LENGTH_TAG_SLUG,
         unique=True,
         verbose_name='Slug',
     )
@@ -35,11 +43,11 @@ class Ingredient(models.Model):
 
     name = models.CharField(
         'Название',
-        max_length=MAX_LENGTH_FIELD,
+        max_length=MAX_LENGTH_INGREDIENT_NAME,
         unique=True
     )
     measurement_unit = models.CharField(
-        max_length=MAX_LENGTH_FIELD,
+        max_length=MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT,
         verbose_name='Единица измерения',
     )
 
@@ -47,13 +55,15 @@ class Ingredient(models.Model):
         ordering = ('name',)
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
+        constraints = (
+            models.UniqueConstraint(
+                fields=('name', 'measurement_unit'),
+                name='unique_pair_name_measurement_unit',
+            ),
+        )
 
     def __str__(self):
         return f'{self.name} ({self.measurement_unit})'
-
-
-def generate_short_link():
-    return uuid.uuid4().hex
 
 
 class Recipe(models.Model):
@@ -91,7 +101,10 @@ class Recipe(models.Model):
     )
     cooking_time = models.PositiveSmallIntegerField(
         validators=[
-            MinValueValidator(1, message='Не может быть меньше 1 минуты'),
+            MinValueValidator(
+                MIN_COOKING_TIME,
+                message=f'Не может быть меньше {MIN_COOKING_TIME} минут(ы)'
+            ),
         ],
         verbose_name='Время приготовления в минутах'
     )
@@ -121,7 +134,7 @@ class Recipe(models.Model):
         return f'Рецепт {self.name} от {self.author}'
 
     def get_abs_url(self):
-        return f'/recipes/{self.pk}/'
+        return reverse('recipes:short_link', args=[self.pk])
 
 
 class RecipeIngredient(models.Model):
@@ -139,7 +152,10 @@ class RecipeIngredient(models.Model):
     )
     amount = models.PositiveIntegerField(
         validators=[
-            MinValueValidator(1, message='Не может быть меньше 1'),
+            MinValueValidator(
+                MIN_AMOUNT,
+                message=f'Не может быть меньше {MIN_AMOUNT}'
+            ),
         ],
         verbose_name='Количество',
     )
@@ -215,6 +231,7 @@ class Favorite(BaseUserRecipe):
     """Модель для избранных рецептов."""
 
     class Meta:
+        ordering = ('user',)
         default_related_name = 'favorites'
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранные'
@@ -224,5 +241,6 @@ class ShoppingCart(BaseUserRecipe):
     """Модель для списка покупок."""
 
     class Meta:
+        ordering = ('user',)
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'

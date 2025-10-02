@@ -37,11 +37,8 @@ class RecipeFilter(rest_framework.FilterSet):
 
     def helper_filter(self, queryset, value, field_filter):
         user = self.request.user
-        if value:
-            if user.is_authenticated:
-                return queryset.filter(**{field_filter: user})
-            else:
-                return queryset.none()
+        if value and user.is_authenticated:
+            return queryset.filter(**{field_filter: user})
         return queryset
 
     def filter_is_favorited(self, queryset, name, value):

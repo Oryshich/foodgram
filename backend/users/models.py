@@ -1,63 +1,11 @@
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import Q
 
 from .constants import (MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_NAME,
                         MAX_LENGTH_LAST_NAME, MAX_LENGTH_USERNAME)
-
-
-class UserManager(BaseUserManager):
-    def create_user(
-            self,
-            email,
-            username,
-            first_name,
-            last_name,
-            password=None,
-            **extra_fields
-    ):
-        if not email:
-            raise ValueError('Email не заполнен')
-        email = self.normalize_email(email)
-        user = self.model(
-            email=email,
-            username=username,
-            first_name=first_name,
-            last_name=last_name,
-            **extra_fields
-        )
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(
-            self,
-            email,
-            username,
-            first_name,
-            last_name,
-            password=None,
-            **extra_fields
-    ):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        if (extra_fields.get('is_staff') is not True
-                or extra_fields.get('is_superuser') is not True):
-            raise ValueError(
-                'Для superuser is_staff=True, is_superuser=True'
-            )
-        return self.create_user(
-            email,
-            username,
-            first_name,
-            last_name,
-            password,
-            **extra_fields
-        )
-
-    def get_by_natural_key(self, email):
-        return self.get(Q(email__iexact=email))
+from .managers import UserManager
 
 
 class User(AbstractBaseUser):
@@ -73,7 +21,7 @@ class User(AbstractBaseUser):
     username = models.CharField(
         max_length=MAX_LENGTH_USERNAME,
         unique=True,
-        validators=[RegexValidator(regex=r'^[\w.@+-]+\Z')],
+        validators=[UnicodeUsernameValidator()],
         verbose_name='Имя пользователя',
         help_text='Только буквы, цифры, символ подчёркивания, '
                   'точка, «@», плюс или дефис.'
@@ -110,12 +58,6 @@ class User(AbstractBaseUser):
 
     def __str__(self):
         return f'Пользователь: {self.username}, email: {self.email}'
-
-    def has_module_perms(self, app_label):
-        return self.is_active
-
-    def has_perm(self, perm, obj=None):
-        return self.is_active
 
 
 class Subscriptions(models.Model):
