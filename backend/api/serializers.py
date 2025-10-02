@@ -1,16 +1,14 @@
 from django.core.validators import MinValueValidator
-from djoser.serializers import (
-    UserCreateSerializer,
-    UserSerializer as DjoserUserSerializer
-)
+from djoser.serializers import UserCreateSerializer
+from djoser.serializers import UserSerializer as DjoserUserSerializer
+from recipes.models import (Ingredient, Recipe, RecipeIngredient, ShoppingCart,
+                            Tag)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueTogetherValidator
 
-from api.fields import Base64ImageField
 from api.constants import MIN_AMOUNT, MIN_COOKING_TIME
-from recipes.models import (Ingredient, Recipe, RecipeIngredient,
-                            ShoppingCart, Tag)
+from api.fields import Base64ImageField
 from users.models import User
 
 

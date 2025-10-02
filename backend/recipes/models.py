@@ -2,15 +2,11 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
 
-from recipes.constants import (
-    MAX_LENGTH_FIELD,
-    MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT,
-    MAX_LENGTH_INGREDIENT_NAME,
-    MAX_LENGTH_TAG_NAME,
-    MAX_LENGTH_TAG_SLUG,
-    MIN_AMOUNT,
-    MIN_COOKING_TIME
-)
+from recipes.constants import (MAX_LENGTH_FIELD,
+                               MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT,
+                               MAX_LENGTH_INGREDIENT_NAME, MAX_LENGTH_TAG_NAME,
+                               MAX_LENGTH_TAG_SLUG, MIN_AMOUNT,
+                               MIN_COOKING_TIME)
 from recipes.utils import generate_short_link
 from users.models import User
 
