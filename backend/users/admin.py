@@ -32,5 +32,5 @@ class UserAdmin(admin.ModelAdmin):
 
     @admin.display(description='Избранное')
     def user_favorites(self, object):
-        data = object.favorites.values_list('favorites__name')
+        data = object.followers.values_list('user__username')
         return list(chain.from_iterable(data))
