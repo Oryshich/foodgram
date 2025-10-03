@@ -129,6 +129,15 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "docker-compose.production.yml"
           target: "foodgram"
+      - name: Copy DOCS (Redock) via ssh
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "docs/"
+          target: "foodgram/docs"
       - name: Executing remote ssh commands to deploy
         uses: appleboy/ssh-action@master
         with:
@@ -144,8 +153,8 @@ jobs:
             sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
             sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
             sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/
-          # sudo docker compose -f docker-compose.production.yml exec backend python manage.py load_tag
-          # sudo docker compose -f docker-compose.production.yml exec backend python manage.py load_ingredient
+            sudo docker compose -f docker-compose.production.yml exec backend python manage.py load_tag
+            sudo docker compose -f docker-compose.production.yml exec backend python manage.py load_ingredient
 
   send_message:
     runs-on: ubuntu-latest
