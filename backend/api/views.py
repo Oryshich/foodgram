@@ -1,4 +1,3 @@
-import re
 from django.db import IntegrityError
 from django.db.models import Sum
 from django.http import FileResponse
@@ -9,7 +8,6 @@ from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.reverse import reverse
 
 from api.filters import IngredientFilter, RecipeFilter
 from api.pagination import LimitPageNumberPagination
