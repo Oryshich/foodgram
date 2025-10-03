@@ -1,24 +1,25 @@
+import re
 from django.db import IntegrityError
 from django.db.models import Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
-                            ShoppingCart, Tag)
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.reverse import reverse
 
 from api.filters import IngredientFilter, RecipeFilter
 from api.pagination import LimitPageNumberPagination
 from api.permissions import IsAuthorOrReadOnly
-from api.serializers import (BaseUserSerializer, CreateRecipeSerializer,
-                             CreateUserSerializer, IngredientSerializer,
+from api.serializers import (CreateRecipeSerializer, IngredientSerializer,
                              ReadRecipeSerializer, RecipeShortSerializer,
                              SubscriptionSerializer, TagSerializer,
                              UserSerializer)
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, Tag)
 from users.models import Subscriptions, User
 
 
@@ -29,25 +30,6 @@ class CustomUserViewSet(UserViewSet):
     serializer_class = UserSerializer
     pagination_class = LimitPageNumberPagination
     lookup_field = 'id'
-
-    def create(self, request, *args, **kwargs):
-        serializer = CreateUserSerializer(
-            data=request.data,
-            context={'request': request}
-        )
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        user = User.objects.get(email=serializer.validated_data['email'])
-        min_user_serializer = BaseUserSerializer(
-            user,
-            context={'request': request}
-        )
-        headers = self.get_success_headers(min_user_serializer.data)
-        return Response(
-            min_user_serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers
-        )
 
     @action(
         detail=False,
@@ -137,18 +119,15 @@ class CustomUserViewSet(UserViewSet):
     @subscribe.mapping.delete
     def del_subscribe(self, request, pk=None, id=None):
         author_id = id if id is not None else pk
-        get_object_or_404(User, pk=author_id)
-        if not (
-            subscribe := Subscriptions.objects.filter(
-                user=self.request.user, following=author_id
-            ).first()
-        ):
-            return Response(
-                {'errors': 'Ошибка отписки!'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        subscribe.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        deleted_subscriptions = Subscriptions.objects.filter(
+            user=request.user, following=get_object_or_404(User, pk=author_id)
+        ).delete()
+        if deleted_subscriptions[0]:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"errors": "Необходимо быть подписанным на этого пользователя"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -198,11 +177,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 context={'request': request}
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        dataset = model.objects.filter(user=user, recipe=recipe)
-        if dataset.exists():
-            dataset.delete()
+
+        deleted_dataset = model.objects.filter(
+            recipe=recipe, user=user
+        ).delete()
+        if deleted_dataset[0]:
             return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"errors": "Необходимо быть подписанным на этого пользователя"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     @action(
         detail=True,
@@ -224,7 +208,20 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def get_export_file(self, list_of_ingredients):
         content = 'Список покупок:\n'
-        for name, amount in list_of_ingredients.items():
+
+        unique_ingredients = {}
+        for ingredient in list_of_ingredients:
+            ingredient_name = ingredient['ingredient__name']
+            measurement = ingredient['ingredient__measurement_unit']
+            amount = ingredient['amount']
+            if ingredient_name not in unique_ingredients:
+                unique_ingredients[ingredient_name] = (amount, measurement)
+            else:
+                unique_ingredients[ingredient_name] = (
+                    unique_ingredients[ingredient_name][0] + amount,
+                    measurement
+                )
+        for name, amount in unique_ingredients.items():
             content += (f'{name}\t{amount[0]} ({amount[1]})\n')
         return FileResponse(
             content,
@@ -248,19 +245,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ).annotate(
             amount=Sum('amount')
         ).order_by('ingredient__name')
-        unique_ingredients = {}
-        for ingredient in ingredients:
-            ingredient_name = ingredient['ingredient__name']
-            measurement = ingredient['ingredient__measurement_unit']
-            amount = ingredient['amount']
-            if ingredient_name not in unique_ingredients:
-                unique_ingredients[ingredient_name] = (amount, measurement)
-            else:
-                unique_ingredients[ingredient_name] = (
-                    unique_ingredients[ingredient_name][0] + amount,
-                    measurement
-                )
-        return self.get_export_file(unique_ingredients)
+        return self.get_export_file(ingredients)
 
     @action(
         detail=True,
@@ -270,7 +255,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk):
         get_object_or_404(Recipe, pk=pk)
         return Response(
-            {'short-link': f'{request.build_absolute_uri()}'},
+            {'short-link': f'{request.build_absolute_uri(f'/recipe/{pk}')}'},
             status=status.HTTP_200_OK
         )
 

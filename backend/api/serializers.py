@@ -1,14 +1,14 @@
 from django.core.validators import MinValueValidator
 from djoser.serializers import UserCreateSerializer
 from djoser.serializers import UserSerializer as DjoserUserSerializer
-from recipes.models import (Ingredient, Recipe, RecipeIngredient, ShoppingCart,
-                            Tag)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueTogetherValidator
 
-from api.constants import MIN_AMOUNT, MIN_COOKING_TIME
 from api.fields import Base64ImageField
+from recipes.constants import MIN_AMOUNT, MIN_COOKING_TIME
+from recipes.models import (Ingredient, Recipe, RecipeIngredient, ShoppingCart,
+                            Tag)
 from users.models import User
 
 
@@ -52,7 +52,7 @@ class CreateUserSerializer(UserCreateSerializer):
             'first_name',
             'last_name',
             'password',
-            'avatar'
+            'avatar',
         )
 
 
@@ -86,7 +86,7 @@ class AddIngredientSerializer(serializers.ModelSerializer):
 
     id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
     amount = serializers.IntegerField(
-        validators=[MinValueValidator(1)]
+        validators=[MinValueValidator(MIN_AMOUNT)]
     )
 
     class Meta:
@@ -212,9 +212,11 @@ class ReadRecipeSerializer(serializers.ModelSerializer):
 
     def get_is_in_shopping_cart(self, obj):
         user = self.context.get('request').user
-        if user.is_anonymous:
-            return False
-        return ShoppingCart.objects.filter(user=user, recipe=obj).exists()
+        return (
+            user.is_authenticated
+            # and obj.shopping_recipes.filter(user=user).exists()
+            and ShoppingCart.objects.filter(user=user, recipe=obj).exists()
+        )
 
 
 class RecipeIngredientCreateSerializer(serializers.ModelSerializer):
@@ -271,8 +273,7 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
             raise ValidationError('Отсутствуют теги !!!')
         if not isinstance(tags, list) or len(tags) == 0:
             raise ValidationError('Должен быть как минимум 1 тег.')
-        tag_ids = [item.id for item in tags]
-        if len(tag_ids) != len(set(tag_ids)):
+        if len(tags) != len(set(tags)):
             raise ValidationError('Теги должны быть уникальны.')
 
     def helper_validate_ingredients(self, ingredients):

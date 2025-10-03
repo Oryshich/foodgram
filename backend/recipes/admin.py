@@ -14,7 +14,6 @@ class IngredientAdmin(admin.ModelAdmin):
     )
     search_fields = ('name',)
     list_filter = ('name',)
-    ordering = ('name',)
 
 
 class RecipeIngredientInline(admin.TabularInline):
@@ -35,7 +34,6 @@ class RecipeAdmin(admin.ModelAdmin):
     )
     search_fields = ('author__username', 'name',)
     list_filter = ('tags',)
-    ordering = ('-id',)
     readonly_fields = ('count_add_to_favorite_display', 'ingredients_display')
     inlines = (RecipeIngredientInline,)
 
@@ -64,7 +62,6 @@ class TagAdmin(admin.ModelAdmin):
     )
     search_fields = ('name', 'slug')
     list_filter = ('name',)
-    ordering = ('name',)
 
 
 @admin.register(ShoppingCart)
@@ -73,7 +70,6 @@ class ShoppingCartAdmin(admin.ModelAdmin):
         'user',
         'recipe',
     )
-    ordering = ('user',)
 
 
 @admin.register(Favorite)
@@ -82,4 +78,3 @@ class FavoriteAdmin(admin.ModelAdmin):
         'user',
         'recipe',
     )
-    ordering = ('user',)

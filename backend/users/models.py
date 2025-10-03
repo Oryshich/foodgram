@@ -1,13 +1,12 @@
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
 
 from .constants import (MAX_LENGTH_EMAIL, MAX_LENGTH_FIRST_NAME,
                         MAX_LENGTH_LAST_NAME, MAX_LENGTH_USERNAME)
-from .managers import UserManager
 
 
-class User(AbstractBaseUser):
+class User(AbstractUser):
     """Модель пользователя с идентификацией по email."""
 
     USERNAME_FIELD = 'email'
@@ -45,10 +44,6 @@ class User(AbstractBaseUser):
         blank=True,
         upload_to='users/images/',
     )
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    is_superuser = models.BooleanField(default=False)
-    objects = UserManager()
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -57,12 +52,6 @@ class User(AbstractBaseUser):
 
     def __str__(self):
         return f'Пользователь: {self.username}, email: {self.email}'
-
-    def has_module_perms(self, app_label):
-        return self.is_active
-
-    def has_perm(self, perm, obj=None):
-        return self.is_active
 
 
 class Subscriptions(models.Model):
