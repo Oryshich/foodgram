@@ -41,12 +41,12 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='Tags',)
     def tags_display(self, obj):
-        tags = object.tags.values_list('name')
+        tags = obj.tags.values_list('name')
         return list(chain.from_iterable(tags))
 
     @admin.display(description='Ingredients',)
     def ingredients_display(self, obj):
-        ingredients = object.ingredients.values_list('name')
+        ingredients = obj.ingredients.values_list('name')
         return list(chain.from_iterable(ingredients))
 
     @admin.display(description='Count in favorites',)
