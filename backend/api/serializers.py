@@ -1,5 +1,4 @@
 from django.core.validators import MinValueValidator
-from djoser.serializers import UserCreateSerializer
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
