@@ -212,13 +212,6 @@ class BaseUserRecipe(models.Model):
 
     class Meta:
         abstract = True
-        constraints = (
-            models.UniqueConstraint(
-                fields=('user', 'recipe'),
-                name='unique_abstract_pair_user_recipe',
-            ),
-        )
-        ordering = ('user',)
 
     def __str__(self):
         return f'Рецепт {self.recipe} от {self.user}'
@@ -228,6 +221,13 @@ class Favorite(BaseUserRecipe):
     """Модель для избранных рецептов."""
 
     class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=('user', 'recipe'),
+                name='unique_favorite_pair_user_recipe',
+            ),
+        )
+        ordering = ('user',)
         default_related_name = 'favorites'
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранные'
@@ -237,5 +237,13 @@ class ShoppingCart(BaseUserRecipe):
     """Модель для списка покупок."""
 
     class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=('user', 'recipe'),
+                name='unique_shoppingcart_pair_user_recipe',
+            ),
+        )
+        ordering = ('user',)
+        default_related_name = 'shoppingcarts'
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'

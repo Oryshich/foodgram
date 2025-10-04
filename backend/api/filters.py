@@ -45,4 +45,4 @@ class RecipeFilter(rest_framework.FilterSet):
         return self.helper_filter(queryset, value, 'favorites__user')
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
-        return self.helper_filter(queryset, value, 'shoppingcart__user')
+        return self.helper_filter(queryset, value, 'shoppingcarts__user')

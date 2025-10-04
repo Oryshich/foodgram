@@ -6,10 +6,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueTogetherValidator
 
 from api.fields import Base64ImageField
+from api.validators import PreventSelfSubscribeValidator
 from recipes.constants import MIN_AMOUNT, MIN_COOKING_TIME
-from recipes.models import (Ingredient, Recipe, RecipeIngredient, ShoppingCart,
-                            Tag)
-from users.models import User
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, Tag)
+from users.models import Subscriptions, User
 
 
 class UserSerializer(DjoserUserSerializer):
@@ -36,23 +37,6 @@ class UserSerializer(DjoserUserSerializer):
         return (
             user.is_authenticated
             and obj.followers.filter(user=user).exists()
-        )
-
-
-class CreateUserSerializer(UserCreateSerializer):
-    """Сериализатор для создания пользователя."""
-
-    avatar = Base64ImageField(required=False)
-
-    class Meta:
-        model = User
-        fields = (
-            'email',
-            'username',
-            'first_name',
-            'last_name',
-            'password',
-            'avatar',
         )
 
 
@@ -154,24 +138,31 @@ class SubscriptionSerializer(UserSerializer):
         return obj.recipes.count()
 
 
-class ShoppingCartSerializer(serializers.ModelSerializer):
-    """Сериалайзер для корзины покупок."""
+class SubscribeSerializer(UserSerializer):
+    """Сериализатор подписчиков."""
 
-    author = DjoserUserSerializer
-    recipe = serializers.PrimaryKeyRelatedField(
-        queryset=Recipe.objects.all()
-    )
+    user = UserSerializer
+    following = UserSerializer
 
     class Meta:
-        model = ShoppingCart
-        fields = ('author', 'recipe')
+        model = Subscriptions
+        fields = ('user', 'following')
         validators = [
             UniqueTogetherValidator(
-                queryset=ShoppingCart.objects.all(),
-                fields=('author', 'recipe'),
-                message='Повторное внесение в корзину покупок запрещено'
+                queryset=Subscriptions.objects.all(),
+                fields=('user', 'following'),
+                message='Нельзя делать повторные подписки'
             ),
+            PreventSelfSubscribeValidator(
+                fields=('user', 'following')
+            )
         ]
+
+    def to_representation(self, instance):
+        return SubscriptionSerializer(
+            instance.user,
+            context={'request': self.context.get('request')}
+        ).data
 
 
 class ReadRecipeSerializer(serializers.ModelSerializer):
@@ -203,20 +194,18 @@ class ReadRecipeSerializer(serializers.ModelSerializer):
             'cooking_time'
         )
 
-    def get_is_favorited(self, obj):
+    def helper_favorited_shopping_cart(self, instance):
         user = self.context.get('request').user
         return (
             user.is_authenticated
-            and obj.favorites.filter(user=user).exists()
+            and instance.filter(user=user).exists()
         )
 
+    def get_is_favorited(self, obj):
+        return self.helper_favorited_shopping_cart(obj.favorites)
+
     def get_is_in_shopping_cart(self, obj):
-        user = self.context.get('request').user
-        return (
-            user.is_authenticated
-            # and obj.shopping_recipes.filter(user=user).exists()
-            and ShoppingCart.objects.filter(user=user, recipe=obj).exists()
-        )
+        return self.helper_favorited_shopping_cart(obj.shoppingcarts)
 
 
 class RecipeIngredientCreateSerializer(serializers.ModelSerializer):
@@ -251,7 +240,7 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
         queryset=Tag.objects.all(),
         many=True
     )
-    ingredients = RecipeIngredientCreateSerializer(
+    ingredients = AddIngredientSerializer(
         many=True,
         write_only=True
     )
@@ -301,10 +290,9 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
 
     def helper_add_ingredients(self, recipe, ingredients):
         for ingredient_data in ingredients:
-            ingredient = Ingredient.objects.get(id=ingredient_data['id'])
             RecipeIngredient.objects.create(
                 recipe=recipe,
-                ingredient=ingredient,
+                ingredient=ingredient_data['id'],
                 amount=ingredient_data['amount']
             )
 
@@ -327,3 +315,26 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return ReadRecipeSerializer(instance, context=self.context).data
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    """Сериализатор добавления/удаления (2 ревью)."""
+    class Meta:
+        model = Favorite
+        fields = ('user', 'recipe')
+
+    def validate(self, data):
+        user, recipe = data.get('user'), data.get('recipe')
+        if self.Meta.model.objects.filter(user=user, recipe=recipe).exists():
+            raise ValidationError('Этот рецепт уже добавлен')
+        return data
+
+    def to_representation(self, instance):
+        context = {'request': self.context.get('request')}
+        return RecipeShortSerializer(instance.recipe, context=context).data
+
+
+class ShoppingSerializer(FavoriteSerializer):
+    """Сериализатор добавления/удаления (2 ревью)."""
+    class Meta(FavoriteSerializer.Meta):
+        model = ShoppingCart
